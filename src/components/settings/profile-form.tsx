@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -13,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { analyticsProfile } from "@/lib/analytics";
 
 const profileSchema = z.object({
   name: z.string().min(1, "Name is required").max(100),
@@ -38,6 +40,7 @@ interface ProfileFormProps {
 
 export function ProfileForm({ user }: ProfileFormProps) {
   const router = useRouter();
+  const { update } = useSession();
   const t = useTranslations("profile");
   const tCommon = useTranslations("common");
   const [isLoading, setIsLoading] = useState(false);
@@ -69,12 +72,19 @@ export function ProfileForm({ user }: ProfileFormProps) {
         throw new Error(error.message || "Failed to update profile");
       }
 
+      // Trigger NextAuth session refresh - JWT callback will fetch updated data from DB
+      await update({});
+
+      analyticsProfile.updateProfile();
+      if (data.avatar !== user.avatar) {
+        analyticsProfile.updateAvatar();
+      }
       toast.success(t("profileUpdated"));
       router.refresh();
-      
+
       // If username changed, redirect to new profile
       if (data.username !== user.username) {
-        router.push(`/${data.username}`);
+        router.push(`/@${data.username}`);
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : tCommon("error"));

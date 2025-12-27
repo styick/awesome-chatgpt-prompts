@@ -1,23 +1,29 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import { Inter, Noto_Sans_Arabic } from "next/font/google";
+import { Inter, Noto_Sans_Arabic, Geist_Mono } from "next/font/google";
 import { getMessages, getLocale } from "next-intl/server";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
+import { LocaleDetector } from "@/components/providers/locale-detector";
 import { getConfig } from "@/lib/config";
 import { isRtlLocale } from "@/lib/i18n/config";
 import "./globals.css";
 
 const inter = Inter({
   subsets: ["latin"],
-  variable: "--font-sans",
+  variable: "--font-inter",
 });
 
 const notoSansArabic = Noto_Sans_Arabic({
   subsets: ["arabic"],
   variable: "--font-arabic",
   weight: ["400", "500", "600", "700"],
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
 });
 
 export const metadata: Metadata = {
@@ -29,6 +35,15 @@ export const metadata: Metadata = {
       { url: "/logo.svg", media: "(prefers-color-scheme: light)" },
       { url: "/logo-dark.svg", media: "(prefers-color-scheme: dark)" },
     ],
+  },
+  openGraph: {
+    title: "prompts.chat",
+    description: "Collect, organize, and share AI prompts",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "prompts.chat",
+    description: "Collect, organize, and share AI prompts",
   },
 };
 
@@ -89,8 +104,8 @@ export default async function RootLayout({
   } as React.CSSProperties;
 
   const fontClasses = isRtl 
-    ? `${inter.variable} ${notoSansArabic.variable} font-arabic` 
-    : `${inter.variable} font-sans`;
+    ? `${inter.variable} ${notoSansArabic.variable} ${geistMono.variable} font-arabic` 
+    : `${inter.variable} ${geistMono.variable} font-sans`;
 
   return (
     <html lang={locale} dir={isRtl ? "rtl" : "ltr"} suppressHydrationWarning className={themeClasses} style={themeStyles}>
@@ -111,7 +126,8 @@ export default async function RootLayout({
             </Script>
           </>
         )}
-        <Providers locale={locale} messages={messages} theme={config.theme} branding={config.branding}>
+        <Providers locale={locale} messages={messages} theme={config.theme} branding={{ ...config.branding, useCloneBranding: config.homepage?.useCloneBranding }}>
+          <LocaleDetector />
           <div className="relative min-h-screen flex flex-col">
             <Header authProvider={config.auth.provider} allowRegistration={config.auth.allowRegistration} />
             <main className="flex-1">{children}</main>

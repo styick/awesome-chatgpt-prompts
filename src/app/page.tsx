@@ -1,11 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { getTranslations } from "next-intl/server";
-import { ArrowRight, Star, Heart, Trophy, Users, HeartHandshake, Code, Lock, Building2, Github } from "lucide-react";
+import { ArrowRight, Star, Heart, Trophy, Users, HeartHandshake, Code, Lock, Building2, Github, GraduationCap } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getConfig } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { DiscoveryPrompts } from "@/components/prompts/discovery-prompts";
+import { HeroPromptInput } from "@/components/prompts/hero-prompt-input";
 
 function getOrdinalSuffix(n: number): string {
   const s = ["th", "st", "nd", "rd"];
@@ -24,6 +25,7 @@ export default async function HomePage() {
   const showRegisterButton = !session && (isOAuth || (config.auth.provider === "credentials" && config.auth.allowRegistration));
 
   const useCloneBranding = config.homepage?.useCloneBranding ?? false;
+  const aiGenerationEnabled = config.features?.aiGeneration ?? false;
 
   // Fetch GitHub stars dynamically (with caching) - only if not using clone branding
   let githubStars = 139000; // fallback
@@ -48,35 +50,44 @@ export default async function HomePage() {
       <section className="relative py-12 md:py-16 border-b overflow-hidden">
         {/* Background - Right Side */}
         {useCloneBranding ? (
-          <div className="absolute top-0 right-0 bottom-0 w-1/2 hidden md:block pointer-events-none overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent z-10" />
+          <div className="absolute top-0 end-0 bottom-0 w-1/2 hidden md:block pointer-events-none overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r rtl:bg-gradient-to-l from-background via-background/80 to-transparent z-10" />
             <Image
               src={config.branding.logo}
               alt={config.branding.name}
               width={800}
               height={800}
-              className="absolute top-1/2 -translate-y-1/2 -right-20 w-[150%] h-auto opacity-15 dark:hidden"
+              className="absolute top-1/2 -translate-y-1/2 -end-20 w-[150%] h-auto opacity-15 dark:hidden"
             />
             <Image
               src={config.branding.logoDark || config.branding.logo}
               alt={config.branding.name}
               width={800}
               height={800}
-              className="absolute top-1/2 -translate-y-1/2 -right-20 w-[150%] h-auto opacity-10 hidden dark:block"
+              className="absolute top-1/2 -translate-y-1/2 -end-20 w-[150%] h-auto opacity-10 hidden dark:block"
             />
           </div>
         ) : (
-          <div className="absolute top-0 right-0 bottom-0 w-1/2 hidden md:block pointer-events-none">
-            <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent z-10" />
-            <video
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="absolute top-1/2 -translate-y-1/2 right-0 w-full h-auto opacity-30 dark:opacity-15 dark:invert"
-            >
-              <source src="/animation.mp4" type="video/mp4" />
-            </video>
+          <div className="absolute top-0 end-0 bottom-0 w-1/2 hidden md:block pointer-events-none">
+            {/* Video background */}
+            <div className="absolute inset-0">
+              <div className="absolute inset-0 bg-gradient-to-r rtl:bg-gradient-to-l from-background via-background/80 to-transparent z-10" />
+              <video
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="absolute top-1/2 -translate-y-1/2 end-0 w-full h-auto opacity-30 dark:opacity-15 dark:invert"
+              >
+                <source src="/animation_compressed.mp4" type="video/mp4" />
+              </video>
+            </div>
+            {/* Animated input overlay - only show if AI generation is enabled */}
+            {aiGenerationEnabled && (
+              <div className="absolute inset-0 hidden lg:flex items-center justify-center z-30 pe-8 pointer-events-auto">
+                <HeroPromptInput />
+              </div>
+            )}
           </div>
         )}
         
@@ -129,9 +140,9 @@ export default async function HomePage() {
                 </Button>
                 {!useCloneBranding && (
                   <Button variant="outline" size="lg" asChild>
-                    <Link href="https://github.com/f/awesome-chatgpt-prompts" target="_blank" rel="noopener noreferrer">
+                    <Link href="https://github.com/f/awesome-chatgpt-prompts/blob/main/SELF-HOSTING.md" target="_blank" rel="noopener noreferrer">
                       <Github className="mr-1.5 h-4 w-4" />
-                      {tHomepage("cloneOnGithub")}
+                      {tHomepage("setupPrivateServer")}
                     </Link>
                   </Button>
                 )}
@@ -174,6 +185,15 @@ export default async function HomePage() {
                 <span>{tHomepage("achievements.featuredIn")} <strong>{tHomepage("achievements.forbes")}</strong></span>
               </Link>
               <Link 
+                href="https://www.huit.harvard.edu/news/ai-prompts" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <GraduationCap className="h-4 w-4 text-[#A51C30]" />
+                <span>{tHomepage("achievements.referencedBy")} <strong>{tHomepage("achievements.harvardUniversity")}</strong></span>
+              </Link>
+              <Link 
                 href="https://huggingface.co/datasets/fka/awesome-chatgpt-prompts" 
                 target="_blank" 
                 rel="noopener noreferrer"
@@ -204,6 +224,19 @@ export default async function HomePage() {
                 <Users className="h-4 w-4 text-green-500" />
                 <span>{tHomepage("achievements.usedByThousands")}</span>
               </span>
+              <Link 
+                href="https://spotlights-feed.github.com/spotlights/prompts-chat/index/" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <Github className="h-4 w-4 text-purple-600" />
+                <span>{tHomepage("achievements.githubStaffPick")}</span>
+              </Link>
+              <span className="flex items-center gap-2 text-muted-foreground">
+                <Code className="h-4 w-4 text-blue-500" />
+                <span>{tHomepage("achievements.fullyOpenSource")}</span>
+              </span>
             </div>
           </div>
         </section>
@@ -227,7 +260,7 @@ export default async function HomePage() {
                 </Link>
               </div>
             )}
-            <div className="flex flex-wrap items-center justify-center gap-8">
+            <div className="flex flex-col md:flex-row flex-wrap items-center justify-center gap-4 md:gap-8">
               {config.homepage.sponsors.items.map((sponsor) => (
                 <Link
                   key={sponsor.name}
@@ -236,16 +269,69 @@ export default async function HomePage() {
                   rel="noopener noreferrer"
                   className="opacity-60 hover:opacity-100 transition-opacity"
                 >
-                  <Image
-                    src={sponsor.logo}
-                    alt={sponsor.name}
-                    width={120}
-                    height={40}
-                    className={`h-9 w-auto dark:invert ${sponsor.className || ''}`}
-                  />
+                  {sponsor.darkLogo ? (
+                    <>
+                      <Image
+                        src={sponsor.logo}
+                        alt={sponsor.name}
+                        width={120}
+                        height={40}
+                        className={`h-9 w-auto dark:hidden ${sponsor.className || ''}`}
+                      />
+                      <Image
+                        src={sponsor.darkLogo}
+                        alt={sponsor.name}
+                        width={120}
+                        height={40}
+                        className={`h-9 w-auto hidden dark:block ${sponsor.className || ''}`}
+                      />
+                    </>
+                  ) : (
+                    <Image
+                      src={sponsor.logo}
+                      alt={sponsor.name}
+                      width={120}
+                      height={40}
+                      className={`h-9 w-auto dark:invert ${sponsor.className || ''}`}
+                    />
+                  )}
                 </Link>
               ))}
             </div>
+            {!useCloneBranding && (
+              <div className="flex flex-col md:flex-row items-center justify-center gap-1.5 mt-6 pt-7 border-t text-xs text-muted-foreground">
+                <span><b>prompts.chat</b> is built with</span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Link href="https://wind.surf/prompts-chat" target="_blank" rel="noopener noreferrer">
+                    <Image
+                      src="/sponsors/windsurf.svg"
+                      alt="Windsurf"
+                      width={80}
+                      height={20}
+                      className="h-3 w-auto dark:invert"
+                    />
+                  </Link>
+                  <span>and</span>
+                  <Link href="https://devin.ai/?utm_source=prompts.chat" target="_blank" rel="noopener noreferrer">
+                    <Image
+                      src="/sponsors/devin.svg"
+                      alt="Devin"
+                      width={80}
+                      height={20}
+                      className="h-6 w-auto dark:hidden"
+                    />
+                    <Image
+                      src="/sponsors/devin-dark.svg"
+                      alt="Devin"
+                      width={80}
+                      height={20}
+                      className="h-6 w-auto hidden dark:block"
+                    />
+                  </Link>
+                  <span>by Cognition</span>
+                </span>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -253,40 +339,42 @@ export default async function HomePage() {
       {/* Featured & Latest Prompts Section */}
       <DiscoveryPrompts isHomepage />
 
-      {/* CTA Section */}
-      <section className="py-12">
-        <div className="container">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-6 rounded-lg border bg-muted/30">
-            <div className="flex items-center gap-4">
-              <Image
-                src={config.branding.logo}
-                alt={config.branding.name}
-                width={48}
-                height={48}
-                className="h-12 w-12 dark:hidden"
-              />
-              <Image
-                src={config.branding.logoDark || config.branding.logo}
-                alt={config.branding.name}
-                width={48}
-                height={48}
-                className="h-12 w-12 hidden dark:block"
-              />
-              <div>
-                <h2 className="font-semibold">{tHomepage("readyToStart")}</h2>
-                <p className="text-sm text-muted-foreground">{tHomepage("freeAndOpen")}</p>
+      {/* CTA Section - only show if not using clone branding */}
+      {!useCloneBranding && (
+        <section className="py-12">
+          <div className="container">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-6 rounded-lg border bg-muted/30">
+              <div className="flex items-center gap-4">
+                <Image
+                  src={config.branding.logo}
+                  alt={config.branding.name}
+                  width={48}
+                  height={48}
+                  className="h-12 w-12 dark:hidden"
+                />
+                <Image
+                  src={config.branding.logoDark || config.branding.logo}
+                  alt={config.branding.name}
+                  width={48}
+                  height={48}
+                  className="h-12 w-12 hidden dark:block"
+                />
+                <div>
+                  <h2 className="font-semibold">{tHomepage("readyToStart")}</h2>
+                  <p className="text-sm text-muted-foreground">{tHomepage("freeAndOpen")}</p>
+                </div>
               </div>
+              {showRegisterButton && (
+                <Button asChild>
+                  <Link href={isOAuth ? "/login" : "/register"}>
+                    {isOAuth ? tNav("login") : tHomepage("createAccount")}
+                  </Link>
+                </Button>
+              )}
             </div>
-            {showRegisterButton && (
-              <Button asChild>
-                <Link href={isOAuth ? "/login" : "/register"}>
-                  {isOAuth ? tNav("login") : tHomepage("createAccount")}
-                </Link>
-              </Button>
-            )}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

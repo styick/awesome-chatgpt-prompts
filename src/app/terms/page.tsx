@@ -32,20 +32,25 @@ export default function TermsPage() {
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">CC0 License</h2>
+          <h2 className="text-lg font-semibold">CC0 License & Public Domain</h2>
           <p className="text-muted-foreground">
-            All prompts shared on this platform are released under the{" "}
+            <strong>Important:</strong> All prompts shared on this platform are immediately and irrevocably released under the{" "}
             <Link href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" rel="noopener noreferrer" className="underline hover:text-foreground">
               CC0 1.0 Universal (CC0 1.0) Public Domain Dedication
             </Link>. 
-            By submitting a prompt, you waive all copyright and related rights to the extent possible under law. 
+            By submitting a prompt, you permanently waive all copyright and related rights to the extent possible under law. 
             This means:
           </p>
           <ul className="list-disc list-inside text-muted-foreground space-y-1">
-            <li>Anyone can use, modify, and distribute your prompts without attribution</li>
-            <li>Your prompts become part of the public domain</li>
-            <li>You cannot later revoke this dedication</li>
+            <li>Your prompts immediately become part of the public domain upon submission</li>
+            <li>Anyone can use, copy, modify, and distribute your prompts without attribution or permission</li>
+            <li>You cannot later revoke, retract, or claim ownership of this dedication</li>
+            <li>Administrators and other users may freely modify your prompts</li>
+            <li>No compensation will be provided for submitted content</li>
           </ul>
+          <p className="text-muted-foreground mt-3">
+            Do not submit prompts if you wish to retain any rights to the content. Once submitted, the content belongs to the public domain forever.
+          </p>
         </section>
 
         <section className="space-y-3">
@@ -71,14 +76,43 @@ export default function TermsPage() {
             <li>Attempt to gain unauthorized access to the service</li>
             <li>Use the service to spam or harass others</li>
             <li>Submit content that infringes on others&apos; intellectual property rights</li>
+            <li>Abuse the platform by submitting low-quality, duplicate, or spam content</li>
+            <li>Use automated tools to mass-create prompts or manipulate the platform</li>
           </ul>
         </section>
 
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold">Content Moderation</h2>
+          <h2 className="text-lg font-semibold">Account Flagging & Restrictions</h2>
           <p className="text-muted-foreground">
-            We reserve the right to remove any content that violates these terms or that we deem 
-            inappropriate. We may also suspend or terminate accounts that violate these terms.
+            If we detect unusual activity or abuse on your account, we reserve the right to flag your account. Flagged accounts are subject to the following restrictions:
+          </p>
+          <ul className="list-disc list-inside text-muted-foreground space-y-1">
+            <li>Prompt creation is limited to 5 prompts per day</li>
+            <li>New prompts may be automatically unlisted from public discovery</li>
+            <li>Your account may be subject to additional review</li>
+          </ul>
+          <p className="text-muted-foreground mt-3">
+            Unusual activity includes but is not limited to: submitting a high volume of low-quality prompts, 
+            automated or bot-like behavior, spam, or any activity that negatively impacts the platform or other users. 
+            Account flags may be removed at our discretion after review.
+          </p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">Content Moderation & Admin Rights</h2>
+          <p className="text-muted-foreground">
+            By submitting content to this platform, you acknowledge and agree that administrators have full discretion over all submitted prompts. This includes the right to:
+          </p>
+          <ul className="list-disc list-inside text-muted-foreground space-y-1">
+            <li>Remove or delete any prompt at any time, for any reason or no reason</li>
+            <li>Unlist prompts from public discovery without deletion</li>
+            <li>Edit, modify, or improve prompts without prior notice or consent</li>
+            <li>Change prompt metadata including titles, descriptions, categories, and tags</li>
+            <li>Suspend or terminate user accounts that violate these terms</li>
+          </ul>
+          <p className="text-muted-foreground mt-3">
+            These actions may be taken without prior notification. Since all prompts are released under CC0 (public domain), 
+            you retain no exclusive rights to the content and cannot object to modifications made by administrators or other users.
           </p>
         </section>
 
