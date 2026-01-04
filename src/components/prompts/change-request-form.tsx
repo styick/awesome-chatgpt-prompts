@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { Loader2, Eye, Edit3, GitCompare } from "lucide-react";
+import { Loader2, Edit3, GitCompare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -13,6 +13,7 @@ import { DiffView } from "@/components/ui/diff-view";
 import { CodeEditor } from "@/components/ui/code-editor";
 import { VariableToolbar } from "@/components/prompts/variable-toolbar";
 import { toast } from "sonner";
+import { analyticsPrompt } from "@/lib/analytics";
 
 interface ChangeRequestFormProps {
   promptId: string;
@@ -79,6 +80,7 @@ export function ChangeRequestForm({ promptId, currentContent, currentTitle, prom
       }
 
       const result = await response.json();
+      analyticsPrompt.changeRequest(promptId, "create");
       toast.success(t("created"));
       router.push(`/prompts/${promptId}/changes/${result.id}`);
       router.refresh();

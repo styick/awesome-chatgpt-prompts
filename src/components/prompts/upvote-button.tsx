@@ -3,7 +3,16 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Link from "next/link";
-import { ArrowBigUp, Loader2, LogIn } from "lucide-react";
+import { Loader2, LogIn } from "lucide-react";
+
+// Triangle up icon component
+function TriangleUp({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <path d="M12 4L3 18h18L12 4z" />
+    </svg>
+  );
+}
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -15,13 +24,14 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { analyticsPrompt } from "@/lib/analytics";
 
 interface UpvoteButtonProps {
   promptId: string;
   initialVoted: boolean;
   initialCount: number;
   isLoggedIn: boolean;
-  size?: "sm" | "default";
+  size?: "sm" | "default" | "circular";
   showLabel?: boolean;
 }
 
@@ -61,6 +71,12 @@ export function UpvoteButton({
       const data = await response.json();
       setIsVoted(data.voted);
       setVoteCount(data.voteCount);
+      
+      if (data.voted) {
+        analyticsPrompt.upvote(promptId);
+      } else {
+        analyticsPrompt.removeUpvote(promptId);
+      }
     } catch {
       toast.error(tCommon("error"));
     } finally {
@@ -92,6 +108,33 @@ export function UpvoteButton({
     </Dialog>
   );
 
+  if (size === "circular") {
+    return (
+      <>
+        <button
+          onClick={handleVote}
+          disabled={isLoading}
+          className={cn(
+            "flex flex-col items-center justify-center w-14 h-14 rounded-full border-2 transition-all",
+            isVoted 
+              ? "bg-primary text-primary-foreground border-primary" 
+              : "bg-background text-muted-foreground border-border hover:border-primary hover:text-primary"
+          )}
+        >
+          {isLoading ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <>
+              <TriangleUp className={cn("h-6 w-6", isVoted && "fill-current")} />
+              <span className="text-xs font-medium -mt-1">{voteCount}</span>
+            </>
+          )}
+        </button>
+        {loginModal}
+      </>
+    );
+  }
+
   if (size === "sm") {
     return (
       <>
@@ -106,7 +149,7 @@ export function UpvoteButton({
           {isLoading ? (
             <Loader2 className="h-3 w-3 animate-spin" />
           ) : (
-            <ArrowBigUp className={cn("h-4 w-4", isVoted && "fill-current")} />
+            <TriangleUp className={cn("h-4 w-4", isVoted && "fill-current")} />
           )}
           <span>{voteCount}</span>
         </button>
@@ -127,7 +170,7 @@ export function UpvoteButton({
         {isLoading ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <ArrowBigUp className={cn("h-4 w-4", isVoted && "fill-current")} />
+          <TriangleUp className={cn("h-4 w-4", isVoted && "fill-current")} />
         )}
         <span>{voteCount}{showLabel && ` ${voteCount === 1 ? t("upvote") : t("upvotes")}`}</span>
       </Button>

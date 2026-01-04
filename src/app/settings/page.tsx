@@ -2,7 +2,9 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import config from "@/../prompts.config";
 import { ProfileForm } from "@/components/settings/profile-form";
+import { ApiKeySettings } from "@/components/settings/api-key-settings";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -20,6 +22,9 @@ export default async function SettingsPage() {
       username: true,
       email: true,
       avatar: true,
+      verified: true,
+      apiKey: true,
+      mcpPromptsPublicByDefault: true,
     },
   });
 
@@ -36,7 +41,16 @@ export default async function SettingsPage() {
         </p>
       </div>
 
-      <ProfileForm user={user} />
+      <div className="space-y-6">
+        <ProfileForm user={user} showVerifiedSection={!config.homepage?.useCloneBranding} />
+
+        {config.features.mcp !== false && (
+          <ApiKeySettings
+            initialApiKey={user.apiKey}
+            initialPublicByDefault={user.mcpPromptsPublicByDefault}
+          />
+        )}
+      </div>
     </div>
   );
 }

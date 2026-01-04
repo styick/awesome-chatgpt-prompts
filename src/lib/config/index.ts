@@ -4,6 +4,8 @@ export interface BrandingConfig {
   logoDark?: string;
   favicon: string;
   description: string;
+  appStoreUrl?: string;
+  chromeExtensionUrl?: string;
 }
 
 export interface ThemeConfig {
@@ -19,7 +21,7 @@ export interface ThemeConfig {
   };
 }
 
-export type AuthProvider = "credentials" | "google" | "azure" | "github" | string;
+export type AuthProvider = "credentials" | "google" | "azure" | "github" | "apple" | string;
 
 export interface AuthConfig {
   /** @deprecated Use `providers` array instead */
@@ -27,10 +29,6 @@ export interface AuthConfig {
   /** Array of auth providers to enable (e.g., ["github", "google"]) */
   providers?: AuthProvider[];
   allowRegistration: boolean;
-}
-
-export interface StorageConfig {
-  provider: "url" | "s3" | string;
 }
 
 export interface I18nConfig {
@@ -44,11 +42,15 @@ export interface FeaturesConfig {
   categories: boolean;
   tags: boolean;
   aiSearch?: boolean;
+  aiGeneration?: boolean;
+  mcp?: boolean;
+  comments?: boolean;
 }
 
 export interface Sponsor {
   name: string;
   logo: string;
+  darkLogo?: string;
   url: string;
   className?: string;
 }
@@ -69,7 +71,6 @@ export interface PromptsConfig {
   branding: BrandingConfig;
   theme: ThemeConfig;
   auth: AuthConfig;
-  storage: StorageConfig;
   i18n: I18nConfig;
   features: FeaturesConfig;
   homepage?: HomepageConfig;
@@ -112,9 +113,6 @@ export async function getConfig(): Promise<PromptsConfig> {
         providers: ["credentials"],
         allowRegistration: true,
       },
-      storage: {
-        provider: "url",
-      },
       i18n: {
         locales: ["en"],
         defaultLocale: "en",
@@ -125,6 +123,8 @@ export async function getConfig(): Promise<PromptsConfig> {
         categories: true,
         tags: true,
         aiSearch: false,
+        aiGeneration: false,
+        comments: true,
       },
     };
     return cachedConfig;

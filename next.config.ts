@@ -5,8 +5,16 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
+  // Configure webpack for raw imports
+  webpack: (config) => {
+    config.module.rules.push({
+      resourceQuery: /raw/,
+      type: 'asset/source',
+    });
+    return config;
+  },
   // Enable standalone output for Docker
-  output: "standalone",
+  // output: "standalone",
   // Experimental features
   experimental: {
     // Enable server actions
@@ -34,6 +42,11 @@ const nextConfig: NextConfig = {
       {
         source: "/sponsors",
         destination: "/categories/sponsors",
+        permanent: true,
+      },
+      {
+        source: "/embed-preview",
+        destination: "/embed",
         permanent: true,
       },
     ];

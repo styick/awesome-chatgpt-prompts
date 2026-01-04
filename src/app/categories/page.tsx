@@ -1,33 +1,66 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { unstable_cache } from "next/cache";
 import { FolderOpen, ChevronRight } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { SubscribeButton } from "@/components/categories/subscribe-button";
 
+// Visible prompt filter
+const visiblePromptFilter = {
+  isPrivate: false,
+  isUnlisted: false,
+  deletedAt: null,
+};
+
+// Cached categories query with filtered prompt counts
+const getCategories = unstable_cache(
+  async () => {
+    const categories = await db.category.findMany({
+      where: { parentId: null },
+      orderBy: { order: "asc" },
+      include: {
+        children: {
+          orderBy: { order: "asc" },
+        },
+      },
+    });
+
+    // Get all category IDs (parents + children)
+    const allCategoryIds = categories.flatMap((c) => [c.id, ...c.children.map((child) => child.id)]);
+
+    // Count visible prompts per category in one query
+    const counts = await db.prompt.groupBy({
+      by: ["categoryId"],
+      where: {
+        categoryId: { in: allCategoryIds },
+        ...visiblePromptFilter,
+      },
+      _count: true,
+    });
+
+    const countMap = new Map(counts.map((c) => [c.categoryId, c._count]));
+
+    // Attach counts to categories
+    return categories.map((category) => ({
+      ...category,
+      promptCount: countMap.get(category.id) || 0,
+      children: category.children.map((child) => ({
+        ...child,
+        promptCount: countMap.get(child.id) || 0,
+      })),
+    }));
+  },
+  ["categories-page"],
+  { tags: ["categories"] }
+);
+
 export default async function CategoriesPage() {
   const t = await getTranslations("categories");
   const session = await auth();
 
-  // Fetch root categories (no parent) with their children
-  const rootCategories = await db.category.findMany({
-    where: { parentId: null },
-    orderBy: { order: "asc" },
-    include: {
-      _count: {
-        select: { prompts: true },
-      },
-      children: {
-        orderBy: { order: "asc" },
-        include: {
-          _count: {
-            select: { prompts: true },
-          },
-        },
-      },
-      // Include parent's direct prompts count
-    },
-  });
+  // Fetch root categories (no parent) with their children (cached)
+  const rootCategories = await getCategories();
 
   // Get user's subscriptions if logged in
   const subscriptions = session?.user
@@ -78,7 +111,7 @@ export default async function CategoriesPage() {
                       />
                     )}
                     <span className="text-xs text-muted-foreground">
-                      {category._count.prompts} {t("prompts")}
+                      {category.promptCount} {t("prompts")}
                     </span>
                   </div>
                   {category.description && (
@@ -116,7 +149,7 @@ export default async function CategoriesPage() {
                           />
                         )}
                         <span className="text-xs text-muted-foreground">
-                          {child._count.prompts}
+                          {child.promptCount}
                         </span>
                       </div>
                       {child.description && (

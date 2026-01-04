@@ -1,6 +1,7 @@
 "use client";
 
 import { Share2 } from "lucide-react";
+import { analyticsPrompt } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,9 +31,10 @@ function HackerNewsIcon({ className }: { className?: string }) {
 interface ShareDropdownProps {
   title: string;
   url?: string;
+  promptId?: string;
 }
 
-export function ShareDropdown({ title, url }: ShareDropdownProps) {
+export function ShareDropdown({ title, url, promptId }: ShareDropdownProps) {
   const handleShare = (platform: "twitter" | "hackernews") => {
     const shareUrl = url || (typeof window !== "undefined" ? window.location.href : "");
     const encodedUrl = encodeURIComponent(shareUrl);
@@ -48,12 +50,13 @@ export function ShareDropdown({ title, url }: ShareDropdownProps) {
     }
 
     window.open(targetUrl, "_blank", "noopener,noreferrer");
+    analyticsPrompt.share(promptId, platform);
   };
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm">
+        <Button variant="ghost" size="sm">
           <Share2 className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
