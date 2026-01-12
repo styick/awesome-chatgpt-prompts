@@ -41,9 +41,13 @@ function CustomPrismaAdapter(): Adapter {
   
   return {
     ...prismaAdapter,
-    async createUser(data: AdapterUser & { username?: string }) {
+    async createUser(data: AdapterUser & { username?: string; githubUsername?: string }) {
       // Use GitHub username if provided, otherwise generate one
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let username = (data as any).username;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const githubUsername = (data as any).githubUsername; // Immutable GitHub username
+      
       if (!username) {
         username = await generateUsername(data.email, data.name);
       } else {
@@ -64,6 +68,7 @@ function CustomPrismaAdapter(): Adapter {
               email: data.email,
               avatar: data.image,
               emailVerified: data.emailVerified,
+              githubUsername: githubUsername || undefined, // Store immutable GitHub username
             },
           });
           
@@ -91,6 +96,7 @@ function CustomPrismaAdapter(): Adapter {
           avatar: data.image,
           emailVerified: data.emailVerified,
           username,
+          githubUsername: githubUsername || undefined, // Store immutable GitHub username
         },
       });
       
@@ -148,44 +154,50 @@ async function buildAuthConfig() {
       error: "/login",
     },
     callbacks: {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       async jwt({ token, user, trigger }: { token: any; user?: any; trigger?: string }) {
         // On sign in, look up the actual database user by email to ensure correct ID
         if (user && user.email) {
           const dbUser = await db.user.findUnique({
             where: { email: user.email },
-            select: { id: true, role: true, username: true, locale: true },
+            select: { id: true, role: true, username: true, locale: true, name: true, avatar: true },
           });
-          
+
           if (dbUser) {
             token.id = dbUser.id;
             token.role = dbUser.role;
             token.username = dbUser.username;
             token.locale = dbUser.locale;
+            token.name = dbUser.name;
+            token.picture = dbUser.avatar;
           }
         }
-        
+
         // On subsequent requests, verify user exists and refresh data
         if (token.id && !user) {
           const dbUser = await db.user.findUnique({
             where: { id: token.id as string },
-            select: { id: true, role: true, username: true, locale: true },
+            select: { id: true, role: true, username: true, locale: true, name: true, avatar: true },
           });
-          
+
           // User no longer exists - invalidate token
           if (!dbUser) {
             return null;
           }
-          
+
           // Update token with latest user data on explicit update or if data missing
           if (trigger === "update" || !token.username) {
             token.role = dbUser.role;
             token.username = dbUser.username;
             token.locale = dbUser.locale;
+            token.name = dbUser.name;
+            token.picture = dbUser.avatar;
           }
         }
-        
+
         return token;
       },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       async session({ session, token }: { session: any; token: any }) {
         // If token is null/invalid, return empty session
         if (!token) {
@@ -196,6 +208,8 @@ async function buildAuthConfig() {
           session.user.role = token.role as string;
           session.user.username = token.username as string;
           session.user.locale = token.locale as string;
+          session.user.name = token.name ?? null;
+          session.user.image = token.picture ?? null;
         }
         return session;
       },
@@ -229,5 +243,7 @@ declare module "@auth/core/jwt" {
     role: string;
     username: string;
     locale: string;
+    name?: string | null;
+    picture?: string | null;
   }
 }

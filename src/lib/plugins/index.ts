@@ -1,11 +1,12 @@
 import { registerBuiltInAuthPlugins } from "./auth";
 import { registerBuiltInStoragePlugins } from "./storage";
-import { getAuthPlugin, getStoragePlugin } from "./registry";
+import { getAuthPlugin } from "./registry";
 import { getConfig } from "@/lib/config";
 
 // Export all types
 export * from "./types";
 export * from "./registry";
+export * from "./widgets";
 
 // Initialize all built-in plugins
 let initialized = false;
@@ -59,22 +60,4 @@ export async function getConfiguredAuthPlugins() {
 export async function getConfiguredAuthPlugin() {
   const plugins = await getConfiguredAuthPlugins();
   return plugins[0];
-}
-
-/**
- * Get the configured storage plugin based on prompts.config.ts
- */
-export async function getConfiguredStoragePlugin() {
-  initializePlugins();
-  const config = await getConfig();
-  const plugin = getStoragePlugin(config.storage.provider);
-  
-  if (!plugin) {
-    throw new Error(
-      `Storage plugin "${config.storage.provider}" not found. ` +
-      `Available plugins: url, s3`
-    );
-  }
-  
-  return plugin;
 }

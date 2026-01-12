@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import { useTranslations } from "next-intl";
 import {
@@ -14,6 +16,11 @@ import {
   Globe,
   Moon,
   Sun,
+  Copy,
+  ExternalLink,
+  Chromium,
+  Hammer,
+  BookOpen,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -30,9 +37,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { setLocale } from "@/lib/i18n/client";
 import { useBranding } from "@/components/providers/branding-provider";
+import { analyticsAuth, analyticsSettings, analyticsExternal } from "@/lib/analytics";
+import { isChromeBrowser } from "@/lib/utils";
 
 const languages = [
   { code: "en", name: "English" },
@@ -44,8 +59,13 @@ const languages = [
   { code: "it", name: "Italiano" },
   { code: "ja", name: "日本語" },
   { code: "tr", name: "Türkçe" },
+  { code: "az", name: "Azərbaycan dili" },
   { code: "ko", name: "한국어" },
   { code: "ar", name: "العربية" },
+  { code: "fa", name: "فارسی" },
+  { code: "ru", name: "Русский" },
+  { code: "he", name: "עברית" },
+  { code: "el", name: "Ελληνικά" }
 ];
 
 interface HeaderProps {
@@ -55,21 +75,39 @@ interface HeaderProps {
 
 export function Header({ authProvider = "credentials", allowRegistration = true }: HeaderProps) {
   const isOAuth = authProvider !== "credentials";
-  // Show register button for OAuth (with login text) or credentials with registration enabled
-  const showRegisterButton = isOAuth || (authProvider === "credentials" && allowRegistration);
   const { data: session } = useSession();
   const t = useTranslations();
   const { theme, setTheme } = useTheme();
   const branding = useBranding();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const user = session?.user;
   const isAdmin = user?.role === "ADMIN";
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isChromeBased, setIsChromeBased] = useState(false);
+
+  useEffect(() => {
+    setIsChromeBased(isChromeBrowser());
+  }, []);
+
+  const handleCopyLogoSvg = async () => {
+    try {
+      const logoUrl = theme === "dark" ? (branding.logoDark || branding.logo) : branding.logo;
+      if (!logoUrl) return;
+      const response = await fetch(logoUrl);
+      const svgContent = await response.text();
+      await navigator.clipboard.writeText(svgContent);
+    } catch (error) {
+      console.error("Failed to copy logo:", error);
+    }
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-12 items-center gap-4">
+      <div className={`flex h-12 items-center gap-4 ${pathname === "/developers" ? "px-4" : "container"}`}>
         {/* Mobile menu */}
-        <Sheet>
+        <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
           <SheetTrigger asChild className="md:hidden">
             <Button variant="ghost" size="icon" className="-ml-2 h-8 w-8">
               <Menu className="h-4 w-4" />
@@ -98,50 +136,75 @@ export function Header({ authProvider = "credentials", allowRegistration = true 
                     />
                   </>
                 )}
-                <span className="text-lg font-semibold">{branding.name}</span>
+                <span className="text-lg font-semibold mt-2">{branding.name}</span>
               </div>
 
               {/* Navigation */}
               <nav className="flex-1 p-4">
                 <div className="space-y-1">
                   {user && (
-                    <Link 
-                      href="/feed" 
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
-                    >
-                      {t("nav.feed")}
-                    </Link>
+                    <>
+                      <Link 
+                        href="/collection" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      >
+                        {t("nav.collection")}
+                      </Link>
+                      <Link 
+                        href="/feed" 
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                      >
+                        {t("nav.feed")}
+                      </Link>
+                    </>
                   )}
                   <Link 
                     href="/prompts" 
+                    onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                   >
                     {t("nav.prompts")}
                   </Link>
                   <Link 
                     href="/categories" 
+                    onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                   >
                     {t("nav.categories")}
                   </Link>
                   <Link 
                     href="/tags" 
+                    onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                   >
                     {t("nav.tags")}
                   </Link>
                   <Link 
                     href="/discover" 
+                    onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                   >
                     {t("feed.discover")}
                   </Link>
                   <Link 
                     href="/promptmasters" 
+                    onClick={() => setMobileMenuOpen(false)}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                   >
                     {t("nav.promptmasters")}
                   </Link>
+                  {!branding.useCloneBranding && (
+                    <Link 
+                      href="https://fka.gumroad.com/l/art-of-chatgpt-prompting" 
+                      onClick={() => setMobileMenuOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                    >
+                      <BookOpen className="h-4 w-4" />
+                      Book
+                    </Link>
+                  )}
                 </div>
               </nav>
 
@@ -156,37 +219,83 @@ export function Header({ authProvider = "credentials", allowRegistration = true 
         </Sheet>
 
         {/* Logo */}
-        <Link href="/" className="flex gap-2">
-          {branding.logo && (
-            <>
-              <Image
-                src={branding.logo}
-                alt={branding.name}
-                width={20}
-                height={20}
-                className="h-5 w-5 dark:hidden"
-              />
-              <Image
-                src={branding.logoDark || branding.logo}
-                alt={branding.name}
-                width={20}
-                height={20}
-                className="h-5 w-5 hidden dark:block"
-              />
-            </>
-          )}
-          <span className="font-semibold leading-none">{branding.name}</span>
-        </Link>
+        {!branding.useCloneBranding ? (
+          <ContextMenu>
+            <ContextMenuTrigger asChild>
+              <Link href="/" className="flex gap-2">
+                {branding.logo && (
+                  <>
+                    <Image
+                      src={branding.logo}
+                      alt={branding.name}
+                      width={20}
+                      height={20}
+                      className="h-5 w-5 dark:hidden"
+                    />
+                    <Image
+                      src={branding.logoDark || branding.logo}
+                      alt={branding.name}
+                      width={20}
+                      height={20}
+                      className="h-5 w-5 hidden dark:block"
+                    />
+                  </>
+                )}
+                <span className="font-semibold leading-none mt-[2px]">{branding.name}</span>
+              </Link>
+            </ContextMenuTrigger>
+            <ContextMenuContent>
+              <ContextMenuItem onClick={handleCopyLogoSvg}>
+                <Copy className="mr-2 h-4 w-4" />
+                {t("brand.copyLogoSvg")}
+              </ContextMenuItem>
+              <ContextMenuItem onClick={() => router.push("/brand")}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                {t("brand.brandAssets")}
+              </ContextMenuItem>
+            </ContextMenuContent>
+          </ContextMenu>
+        ) : (
+          <Link href="/" className="flex gap-2">
+            {branding.logo && (
+              <>
+                <Image
+                  src={branding.logo}
+                  alt={branding.name}
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 dark:hidden"
+                />
+                <Image
+                  src={branding.logoDark || branding.logo}
+                  alt={branding.name}
+                  width={20}
+                  height={20}
+                  className="h-5 w-5 hidden dark:block"
+                />
+              </>
+            )}
+            <span className="font-semibold leading-none mt-[2px]">{branding.name}</span>
+          </Link>
+        )}
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1 text-sm">
           {user && (
-            <Link
-              href="/feed"
-              className="px-3 py-1.5 rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-accent"
-            >
-              {t("nav.feed")}
-            </Link>
+            <>
+              <Link
+                href="/collection"
+                className="px-3 py-1.5 rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-accent"
+              >
+                {t("nav.collection")}
+              </Link>
+              <Link
+                href="/feed"
+                className="px-3 py-1.5 rounded-md text-muted-foreground transition-colors hover:text-foreground hover:bg-accent"
+              >
+                {t("nav.feed")}
+              </Link>
+            </>
           )}
           <Link
             href="/prompts"
@@ -219,6 +328,24 @@ export function Header({ authProvider = "credentials", allowRegistration = true 
 
         {/* Right side actions */}
         <div className="flex items-center gap-1">
+          {/* Book link */}
+          {!branding.useCloneBranding && (
+            <Button asChild variant="ghost" size="sm" className="hidden lg:flex h-8 gap-1.5">
+              <Link href="https://fka.gumroad.com/l/art-of-chatgpt-prompting">
+                <BookOpen className="h-4 w-4" />
+                Book
+              </Link>
+            </Button>
+          )}
+
+          {/* Developers link */}
+          <Button asChild variant="ghost" size="icon" className="hidden lg:flex h-8 w-8">
+            <Link href="/developers" title={t("nav.developers")}>
+              <Hammer className="h-4 w-4" />
+              <span className="sr-only">{t("nav.developers")}</span>
+            </Link>
+          </Button>
+
           {/* Create prompt button */}
           {user && (
             <Button asChild variant="ghost" size="icon" className="h-8 w-8">
@@ -232,12 +359,35 @@ export function Header({ authProvider = "credentials", allowRegistration = true 
           {/* Notifications */}
           {user && <NotificationBell />}
 
+          {isChromeBased && branding.chromeExtensionUrl && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              asChild
+            >
+              <a
+                href={branding.chromeExtensionUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => analyticsExternal.clickChromeExtension()}
+              >
+                <Chromium className="h-4 w-4" />
+                <span className="sr-only">Get Chrome Extension</span>
+              </a>
+            </Button>
+          )}
+
           {/* Theme toggle */}
           <Button
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+            onClick={() => {
+              const newTheme = theme === "dark" ? "light" : "dark";
+              analyticsSettings.changeTheme(newTheme);
+              setTheme(newTheme);
+            }}
           >
             <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
             <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -300,7 +450,10 @@ export function Header({ authProvider = "credentials", allowRegistration = true 
                     {languages.map((lang) => (
                       <DropdownMenuItem
                         key={lang.code}
-                        onClick={() => setLocale(lang.code)}
+                        onClick={() => {
+                          analyticsSettings.changeLanguage(lang.code);
+                          setLocale(lang.code);
+                        }}
                       >
                         {lang.name}
                       </DropdownMenuItem>
@@ -308,7 +461,10 @@ export function Header({ authProvider = "credentials", allowRegistration = true 
                   </DropdownMenuSubContent>
                 </DropdownMenuSub>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })}>
+                <DropdownMenuItem onClick={() => {
+                  analyticsAuth.logout();
+                  signOut({ callbackUrl: "/" });
+                }}>
                   <LogOut className="mr-2 h-4 w-4" />
                   {t("nav.logout")}
                 </DropdownMenuItem>
@@ -327,7 +483,10 @@ export function Header({ authProvider = "credentials", allowRegistration = true 
                   {languages.map((lang) => (
                     <DropdownMenuItem
                       key={lang.code}
-                      onClick={() => setLocale(lang.code)}
+                      onClick={() => {
+                        analyticsSettings.changeLanguage(lang.code);
+                        setLocale(lang.code);
+                      }}
                     >
                       {lang.name}
                     </DropdownMenuItem>

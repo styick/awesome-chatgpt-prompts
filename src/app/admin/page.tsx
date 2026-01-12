@@ -4,9 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, FolderTree, Tags, FileText, Webhook, Flag } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Users, FolderTree, Tags, FileText } from "lucide-react";
+import { AdminTabs } from "@/components/admin/admin-tabs";
 import { UsersTable } from "@/components/admin/users-table";
 import { CategoriesTable } from "@/components/admin/categories-table";
 import { TagsTable } from "@/components/admin/tags-table";
@@ -38,37 +38,44 @@ export default async function AdminPage() {
     isAISearchEnabled(),
   ]);
   
-  // Count prompts without embeddings (JSON null check requires separate query)
+  // Count prompts without embeddings and total public prompts
   let promptsWithoutEmbeddings = 0;
+  let totalPublicPrompts = 0;
   if (aiSearchEnabled) {
-    promptsWithoutEmbeddings = await db.prompt.count({
-      where: {
-        isPrivate: false,
-        embedding: { equals: Prisma.DbNull },
-      },
-    });
+    [promptsWithoutEmbeddings, totalPublicPrompts] = await Promise.all([
+      db.prompt.count({
+        where: {
+          isPrivate: false,
+          deletedAt: null,
+          embedding: { equals: Prisma.DbNull },
+        },
+      }),
+      db.prompt.count({
+        where: {
+          isPrivate: false,
+          deletedAt: null,
+        },
+      }),
+    ]);
   }
 
-  // Fetch data for tables
-  const [users, categories, tags, webhooks, reports] = await Promise.all([
-    db.user.findMany({
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        name: true,
-        avatar: true,
-        role: true,
-        verified: true,
-        createdAt: true,
-        _count: {
-          select: {
-            prompts: true,
-          },
-        },
+  // Count prompts without slugs
+  const [promptsWithoutSlugs, totalPrompts] = await Promise.all([
+    db.prompt.count({
+      where: {
+        slug: null,
+        deletedAt: null,
       },
     }),
+    db.prompt.count({
+      where: {
+        deletedAt: null,
+      },
+    }),
+  ]);
+
+  // Fetch data for tables (users are fetched client-side with pagination)
+  const [categories, tags, webhooks, reports] = await Promise.all([
     db.category.findMany({
       orderBy: [{ parentId: "asc" }, { order: "asc" }],
       include: {
@@ -105,7 +112,10 @@ export default async function AdminPage() {
         prompt: {
           select: {
             id: true,
+            slug: true,
             title: true,
+            isUnlisted: true,
+            deletedAt: true,
           },
         },
         reporter: {
@@ -168,66 +178,33 @@ export default async function AdminPage() {
       </div>
 
       {/* Management Tabs */}
-      <Tabs defaultValue="users" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="users" className="gap-2">
-            <Users className="h-4 w-4" />
-            {t("tabs.users")}
-          </TabsTrigger>
-          <TabsTrigger value="categories" className="gap-2">
-            <FolderTree className="h-4 w-4" />
-            {t("tabs.categories")}
-          </TabsTrigger>
-          <TabsTrigger value="tags" className="gap-2">
-            <Tags className="h-4 w-4" />
-            {t("tabs.tags")}
-          </TabsTrigger>
-          <TabsTrigger value="webhooks" className="gap-2">
-            <Webhook className="h-4 w-4" />
-            {t("tabs.webhooks")}
-          </TabsTrigger>
-          <TabsTrigger value="prompts" className="gap-2">
-            <FileText className="h-4 w-4" />
-            {t("tabs.prompts")}
-          </TabsTrigger>
-          <TabsTrigger value="reports" className="gap-2">
-            <Flag className="h-4 w-4" />
-            {t("tabs.reports")}
-            {reports.filter(r => r.status === "PENDING").length > 0 && (
-              <span className="ml-1 px-1.5 py-0.5 text-xs bg-destructive text-white rounded-full">
-                {reports.filter(r => r.status === "PENDING").length}
-              </span>
-            )}
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="users">
-          <UsersTable users={users} />
-        </TabsContent>
-
-        <TabsContent value="categories">
-          <CategoriesTable categories={categories} />
-        </TabsContent>
-
-        <TabsContent value="tags">
-          <TagsTable tags={tags} />
-        </TabsContent>
-
-        <TabsContent value="webhooks">
-          <WebhooksTable webhooks={webhooks} />
-        </TabsContent>
-
-        <TabsContent value="prompts">
-          <PromptsManagement 
-            aiSearchEnabled={aiSearchEnabled} 
-            promptsWithoutEmbeddings={promptsWithoutEmbeddings} 
-          />
-        </TabsContent>
-
-        <TabsContent value="reports">
-          <ReportsTable reports={reports} />
-        </TabsContent>
-      </Tabs>
+      <AdminTabs
+        translations={{
+          users: t("tabs.users"),
+          categories: t("tabs.categories"),
+          tags: t("tabs.tags"),
+          webhooks: t("tabs.webhooks"),
+          prompts: t("tabs.prompts"),
+          reports: t("tabs.reports"),
+        }}
+        pendingReportsCount={reports.filter(r => r.status === "PENDING").length}
+        children={{
+          users: <UsersTable />,
+          categories: <CategoriesTable categories={categories} />,
+          tags: <TagsTable tags={tags} />,
+          webhooks: <WebhooksTable webhooks={webhooks} />,
+          prompts: (
+            <PromptsManagement 
+              aiSearchEnabled={aiSearchEnabled} 
+              promptsWithoutEmbeddings={promptsWithoutEmbeddings}
+              totalPublicPrompts={totalPublicPrompts}
+              promptsWithoutSlugs={promptsWithoutSlugs}
+              totalPrompts={totalPrompts}
+            />
+          ),
+          reports: <ReportsTable reports={reports} />,
+        }}
+      />
     </div>
   );
 }

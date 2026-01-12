@@ -4,8 +4,10 @@ import { getTranslations } from "next-intl/server";
 import { ArrowLeft, Tag } from "lucide-react";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import config from "@/../prompts.config";
 import { Button } from "@/components/ui/button";
 import { PromptCard } from "@/components/prompts/prompt-card";
+import { McpServerPopup } from "@/components/mcp/mcp-server-popup";
 
 interface TagPageProps {
   params: Promise<{ slug: string }>;
@@ -43,13 +45,15 @@ export default async function TagPage({ params, searchParams }: TagPageProps) {
   }
 
   const page = Math.max(1, parseInt(pageParam || "1"));
-  const perPage = 12;
+  const perPage = 24;
 
   // Build where clause
   const where = {
     tags: {
       some: { tagId: tag.id },
     },
+    isUnlisted: false,
+    deletedAt: null,
     OR: session?.user
       ? [{ isPrivate: false }, { authorId: session.user.id }]
       : [{ isPrivate: false }],
@@ -69,13 +73,14 @@ export default async function TagPage({ params, searchParams }: TagPageProps) {
             name: true,
             username: true,
             avatar: true,
+            verified: true,
           },
         },
         category: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
+          include: {
+            parent: {
+              select: { id: true, name: true, slug: true },
+            },
           },
         },
         tags: {
@@ -110,15 +115,18 @@ export default async function TagPage({ params, searchParams }: TagPageProps) {
           </Link>
         </Button>
 
-        <div className="flex items-center gap-3">
-          <div
-            className="w-4 h-4 rounded-full"
-            style={{ backgroundColor: tag.color }}
-          />
-          <h1 className="text-xl font-semibold">{tag.name}</h1>
-          <span className="text-sm text-muted-foreground">
-            {total} {t("prompts")}
-          </span>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-4 h-4 rounded-full"
+              style={{ backgroundColor: tag.color }}
+            />
+            <h1 className="text-xl font-semibold">{tag.name}</h1>
+            <span className="text-sm text-muted-foreground">
+              {total} {t("prompts")}
+            </span>
+          </div>
+          {config.features.mcp !== false && <McpServerPopup initialTags={[slug]} showOfficialBranding={!config.homepage?.useCloneBranding} />}
         </div>
       </div>
 
@@ -132,7 +140,7 @@ export default async function TagPage({ params, searchParams }: TagPageProps) {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-fr">
+          <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
             {prompts.map((prompt) => (
               <PromptCard key={prompt.id} prompt={prompt} />
             ))}

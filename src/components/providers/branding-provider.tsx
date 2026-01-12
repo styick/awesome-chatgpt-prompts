@@ -7,6 +7,9 @@ interface BrandingContextValue {
   logo: string;
   logoDark?: string;
   description: string;
+  appStoreUrl?: string;
+  chromeExtensionUrl?: string;
+  useCloneBranding?: boolean;
 }
 
 const BrandingContext = createContext<BrandingContextValue | null>(null);

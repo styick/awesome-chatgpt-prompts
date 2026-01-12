@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { RunPromptButton } from "@/components/prompts/run-prompt-button";
+import { analyticsPrompt } from "@/lib/analytics";
 
 interface Variable {
   name: string;
@@ -26,6 +27,9 @@ interface VariableFillModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: "copy" | "run";
+  promptId?: string;
+  categoryName?: string;
+  parentCategoryName?: string;
 }
 
 // Parse ${variablename:defaultvalue} or ${variablename} patterns
@@ -60,7 +64,10 @@ export function VariableFillModal({
   content, 
   open, 
   onOpenChange, 
-  mode
+  mode,
+  promptId,
+  categoryName,
+  parentCategoryName
 }: VariableFillModalProps) {
   const t = useTranslations("common");
 
@@ -96,6 +103,8 @@ export function VariableFillModal({
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(getFinalContent());
+      analyticsPrompt.fillVariables(promptId);
+      analyticsPrompt.copy(promptId);
       toast.success(t("copied"));
       onOpenChange(false);
     } catch {
@@ -134,7 +143,7 @@ export function VariableFillModal({
               {t("copy")}
             </Button>
           ) : (
-            <RunPromptButton content={finalContent} size="sm" />
+            <RunPromptButton content={finalContent} size="sm" categoryName={categoryName} parentCategoryName={parentCategoryName} />
           )}
         </div>
       </DialogContent>

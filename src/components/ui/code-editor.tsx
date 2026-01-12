@@ -12,11 +12,12 @@ export interface CodeEditorHandle {
 interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
-  language: "json" | "yaml";
+  language: "json" | "yaml" | "markdown";
   placeholder?: string;
   className?: string;
   minHeight?: string;
   debounceMs?: number;
+  readOnly?: boolean;
 }
 
 const CodeEditorInner = forwardRef<CodeEditorHandle, CodeEditorProps>(function CodeEditorInner({
@@ -27,6 +28,7 @@ const CodeEditorInner = forwardRef<CodeEditorHandle, CodeEditorProps>(function C
   className,
   minHeight = "300px",
   debounceMs = 0,
+  readOnly = false,
 }, ref) {
   const { resolvedTheme } = useTheme();
   const editorRef = useRef<Parameters<OnMount>[0] | null>(null);
@@ -96,8 +98,9 @@ const CodeEditorInner = forwardRef<CodeEditorHandle, CodeEditorProps>(function C
 
   return (
     <div
+      dir="ltr"
       className={cn(
-        "border rounded-md overflow-hidden",
+        "border rounded-md overflow-hidden text-left",
         className
       )}
       style={{ minHeight }}
@@ -112,16 +115,18 @@ const CodeEditorInner = forwardRef<CodeEditorHandle, CodeEditorProps>(function C
         options={{
           minimap: { enabled: false },
           fontSize: 11,
-          lineNumbers: "on",
+          lineNumbers: "off",
           scrollBeyondLastLine: false,
           wordWrap: "on",
           wrappingIndent: "indent",
           automaticLayout: true,
           tabSize: 2,
           padding: { top: 8, bottom: 8 },
-          renderLineHighlight: "none",
+          renderLineHighlight: readOnly ? "none" : "line",
           overviewRulerBorder: false,
           hideCursorInOverviewRuler: true,
+          readOnly: readOnly,
+          domReadOnly: readOnly,
           scrollbar: {
             vertical: "auto",
             horizontal: "auto",
@@ -143,6 +148,7 @@ export const CodeEditor = memo(CodeEditorInner, (prevProps, nextProps) => {
     prevProps.placeholder === nextProps.placeholder &&
     prevProps.className === nextProps.className &&
     prevProps.minHeight === nextProps.minHeight &&
-    prevProps.debounceMs === nextProps.debounceMs
+    prevProps.debounceMs === nextProps.debounceMs &&
+    prevProps.readOnly === nextProps.readOnly
   );
 });

@@ -13,7 +13,7 @@
 
 ## Benefits
 
-- **Unlock AI Potential:** Stop struggling with prompt engineering — use battle-tested prompts from 139k+ GitHub stars community
+- **Unlock AI Potential:** Stop struggling with prompt engineering — use battle-tested prompts from 141k+ GitHub stars community
 - **Save Time:** Copy prompts with one click, customize variables inline, and use them instantly in any AI chat
 - **Community-Driven Quality:** Every prompt is curated and refined by the community through change requests and voting
 - **Self-Hostable:** Deploy your own white-labeled prompt library for your team or organization with customizable branding, themes, and authentication
@@ -62,6 +62,22 @@ OPENAI_API_KEY="your-openai-api-key"
 
 ## Installation
 
+### Quick Start (Recommended)
+
+The fastest way to create a new prompts.chat instance:
+
+```bash
+npx prompts.chat new my-prompt-library
+cd my-prompt-library
+```
+
+This will:
+1. Clone a clean copy of the repository (without development files)
+2. Install dependencies
+3. Launch the interactive setup wizard
+
+### Manual Installation
+
 1. **Clone the repository**
    ```bash
    git clone https://github.com/f/awesome-chatgpt-prompts.git
@@ -73,28 +89,39 @@ OPENAI_API_KEY="your-openai-api-key"
    npm install
    ```
 
-3. **Configure your environment**
+3. **Run the interactive setup wizard**
+   ```bash
+   npm run setup
+   ```
+   This will guide you through configuring:
+   - **Branding** — App name, logo, description
+   - **Theme** — Primary color, border radius, UI variant
+   - **Authentication** — GitHub, Google, Apple, Azure AD, or email/password
+   - **Languages** — Select from 16 supported locales
+   - **Features** — Private prompts, categories, tags, comments, AI search, AI generation, MCP support
+
+4. **Configure environment variables**
    ```bash
    cp .env.example .env
    # Edit .env with your database and auth credentials
    ```
 
-4. **Run database migrations**
+5. **Run database migrations**
    ```bash
    npm run db:migrate
    ```
 
-5. **Seed initial data** (optional)
+6. **Seed initial data** (optional)
    ```bash
    npm run db:seed
    ```
 
-6. **Start the development server**
+7. **Start the development server**
    ```bash
    npm run dev
    ```
 
-7. **Build for production**
+8. **Build for production**
    ```bash
    npm run build
    npm run start
@@ -102,7 +129,7 @@ OPENAI_API_KEY="your-openai-api-key"
 
 ## Configuration
 
-Customize your instance by editing `prompts.config.ts`:
+The setup wizard (`npm run setup`) generates `prompts.config.ts` automatically. You can also manually edit it:
 
 ```typescript
 // Set to true to use your own branding instead of prompts.chat branding
@@ -167,15 +194,11 @@ When `useCloneBranding` is set to `true`, the homepage will:
 - Display your **branding name** as the hero title
 - Show your **branding description** below the title
 - Use your **logo** as a watermark background instead of the video
-- Hide the "Clone on GitHub" button
+- Hide the "Deploy Your Private Server" button
 - Hide the achievements section (Forbes, GitHub stars, etc.)
 - Hide the sponsor links and "Become a Sponsor" CTA
 
 This is ideal for organizations that want to deploy their own white-labeled prompt library without prompts.chat branding.
-
-## Docker Deployment
-
-Coming soon.
 
 ## Support
 

@@ -1,13 +1,17 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { generatePromptEmbedding, findAndSaveRelatedPrompts } from "@/lib/ai/embeddings";
+import { generatePromptSlug } from "@/lib/slug";
+import { checkPromptQuality } from "@/lib/ai/quality-check";
 
 const updatePromptSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(500).optional(),
   content: z.string().min(1).optional(),
-  type: z.enum(["TEXT", "IMAGE", "VIDEO", "AUDIO", "STRUCTURED"]).optional(),
+  type: z.enum(["TEXT", "IMAGE", "VIDEO", "AUDIO", "SKILL"]).optional(), // Output type or SKILL
   structuredFormat: z.enum(["JSON", "YAML"]).optional().nullable(),
   categoryId: z.string().optional().nullable(),
   tagIds: z.array(z.string()).optional(),
@@ -17,6 +21,11 @@ const updatePromptSchema = z.object({
   requiresMediaUpload: z.boolean().optional(),
   requiredMediaType: z.enum(["IMAGE", "VIDEO", "DOCUMENT"]).optional().nullable(),
   requiredMediaCount: z.number().int().min(1).max(10).optional().nullable(),
+  bestWithModels: z.array(z.string()).max(3).optional(),
+  bestWithMCP: z.array(z.object({
+    command: z.string(),
+    tools: z.array(z.string()).optional(),
+  })).optional(),
 });
 
 // Get single prompt
@@ -37,9 +46,14 @@ export async function GET(
             name: true,
             username: true,
             avatar: true,
+            verified: true,
           },
         },
-        category: true,
+        category: {
+          include: {
+            parent: true,
+          },
+        },
         tags: {
           include: {
             tag: true,
@@ -48,6 +62,9 @@ export async function GET(
         versions: {
           orderBy: { version: "desc" },
           take: 10,
+        },
+        _count: {
+          select: { votes: true },
         },
       },
     });
@@ -67,7 +84,28 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(prompt);
+    // Check if logged-in user has voted
+    let hasVoted = false;
+    if (session?.user?.id) {
+      const vote = await db.promptVote.findUnique({
+        where: {
+          userId_promptId: {
+            userId: session.user.id,
+            promptId: id,
+          },
+        },
+      });
+      hasVoted = !!vote;
+    }
+
+    // Omit embedding from response (it's large binary data)
+    const { embedding: _embedding, ...promptWithoutEmbedding } = prompt;
+
+    return NextResponse.json({
+      ...promptWithoutEmbedding,
+      voteCount: prompt._count.votes,
+      hasVoted,
+    });
   } catch (error) {
     console.error("Get prompt error:", error);
     return NextResponse.json(
@@ -123,13 +161,23 @@ export async function PATCH(
       );
     }
 
-    const { tagIds, contributorIds, categoryId, mediaUrl, ...data } = parsed.data;
+    const { tagIds, contributorIds, categoryId, mediaUrl, title, bestWithModels, bestWithMCP, ...data } = parsed.data;
+
+    // Regenerate slug if title changed
+    let newSlug: string | undefined;
+    if (title) {
+      newSlug = await generatePromptSlug(title);
+    }
 
     // Convert empty strings to null for optional foreign keys
     const cleanedData = {
       ...data,
+      ...(title && { title }),
+      ...(newSlug && { slug: newSlug }),
       ...(categoryId !== undefined && { categoryId: categoryId || null }),
       ...(mediaUrl !== undefined && { mediaUrl: mediaUrl || null }),
+      ...(bestWithModels !== undefined && { bestWithModels }),
+      ...(bestWithMCP !== undefined && { bestWithMCP }),
     };
 
     // Update prompt
@@ -157,7 +205,11 @@ export async function PATCH(
             username: true,
           },
         },
-        category: true,
+        category: {
+          include: {
+            parent: true,
+          },
+        },
         tags: {
           include: {
             tag: true,
@@ -184,6 +236,48 @@ export async function PATCH(
       });
     }
 
+    // Regenerate embedding if content, title, or description changed (non-blocking)
+    // Only for public prompts - the function checks if aiSearch is enabled
+    // After embedding is regenerated, update related prompts
+    const contentChanged = data.content || title || data.description !== undefined;
+    if (contentChanged && !prompt.isPrivate) {
+      generatePromptEmbedding(id)
+        .then(() => findAndSaveRelatedPrompts(id))
+        .catch((err) =>
+          console.error("Failed to regenerate embedding/related prompts for:", id, err)
+        );
+    }
+
+    // Run quality check for auto-delist on content changes (non-blocking)
+    // Only for public prompts that aren't already delisted
+    if (contentChanged && !prompt.isPrivate && !prompt.isUnlisted) {
+      const checkTitle = title || prompt.title;
+      const checkContent = data.content || prompt.content;
+      const checkDescription = data.description !== undefined ? data.description : prompt.description;
+      
+      console.log(`[Quality Check] Starting check for updated prompt ${id}`);
+      checkPromptQuality(checkTitle, checkContent, checkDescription).then(async (result) => {
+        console.log(`[Quality Check] Result for prompt ${id}:`, JSON.stringify(result));
+        if (result.shouldDelist && result.reason) {
+          console.log(`[Quality Check] Auto-delisting prompt ${id}: ${result.reason} - ${result.details}`);
+          await db.prompt.update({
+            where: { id },
+            data: {
+              isUnlisted: true,
+              unlistedAt: new Date(),
+              delistReason: result.reason,
+            },
+          });
+          console.log(`[Quality Check] Prompt ${id} delisted successfully`);
+        }
+      }).catch((err) => {
+        console.error("[Quality Check] Failed to run quality check for prompt:", id, err);
+      });
+    }
+
+    // Revalidate prompts cache
+    revalidateTag("prompts", "max");
+
     return NextResponse.json(prompt);
   } catch (error) {
     console.error("Update prompt error:", error);
@@ -194,7 +288,9 @@ export async function PATCH(
   }
 }
 
-// Soft delete prompt (admin only - CC0 prompts cannot be deleted by users)
+// Soft delete prompt
+// - Admins can delete any prompt
+// - Owners can delete their own delisted prompts (auto-delisted for quality issues)
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -210,18 +306,16 @@ export async function DELETE(
       );
     }
 
-    // Only admins can soft-delete prompts (CC0 content is public domain)
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        { error: "forbidden", message: "Prompts are released under CC0 and cannot be deleted. Contact an admin if there is an issue." },
-        { status: 403 }
-      );
-    }
-
-    // Check if prompt exists
+    // Check if prompt exists and get ownership/delist status
     const existing = await db.prompt.findUnique({
       where: { id },
-      select: { id: true, deletedAt: true },
+      select: { 
+        id: true, 
+        deletedAt: true, 
+        authorId: true, 
+        isUnlisted: true,
+        delistReason: true,
+      },
     });
 
     if (!existing) {
@@ -238,13 +332,41 @@ export async function DELETE(
       );
     }
 
+    const isAdmin = session.user.role === "ADMIN";
+    const isOwner = existing.authorId === session.user.id;
+    const isDelisted = existing.isUnlisted && existing.delistReason;
+
+    // Owners can only delete their own delisted prompts (quality issues)
+    // Admins can delete any prompt
+    if (!isAdmin && !(isOwner && isDelisted)) {
+      return NextResponse.json(
+        { 
+          error: "forbidden", 
+          message: isOwner 
+            ? "You can only delete prompts that have been delisted for quality issues. Contact an admin for other deletions."
+            : "Prompts are released under CC0 and cannot be deleted. Contact an admin if there is an issue." 
+        },
+        { status: 403 }
+      );
+    }
+
     // Soft delete by setting deletedAt timestamp
     await db.prompt.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
 
-    return NextResponse.json({ success: true, message: "Prompt soft deleted" });
+    // Revalidate caches (prompts, categories, tags counts change)
+    revalidateTag("prompts", "max");
+    revalidateTag("categories", "max");
+    revalidateTag("tags", "max");
+
+    return NextResponse.json({ 
+      success: true, 
+      message: isOwner && isDelisted 
+        ? "Delisted prompt deleted successfully" 
+        : "Prompt soft deleted" 
+    });
   } catch (error) {
     console.error("Delete prompt error:", error);
     return NextResponse.json(
